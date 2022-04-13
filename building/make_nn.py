@@ -1,15 +1,10 @@
-import sys
-import shutil
-
-import PIL.Image
-import matplotlib.pyplot as plt
-import numpy as np
 import os
+import shutil
+import sys
+
 import PIL
-
+import PIL.Image
 import tensorflow as tf
-
-from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
@@ -110,7 +105,7 @@ if __name__ == '__main__':
     train_ds = tf.keras.utils.image_dataset_from_directory(
         arguments[1],
         labels="inferred",
-        seed=123,
+        seed=123,  # To standardize the dataset seeding ensure the results will be the same
         image_size=(img_width_height[1], img_width_height[0]),
         batch_size=batch_size)
     class_names = train_ds.class_names
@@ -132,7 +127,7 @@ if __name__ == '__main__':
     image_batch, labels_batch = next(iter(normalized_ds))
     first_image = image_batch[0]
     # Notice the pixel values are now in `[0,1]`. Print statement removed for class reasonings
-    #print(np.min(first_image), np.max(first_image))
+    # print(np.min(first_image), np.max(first_image))
 
     # We can grab classnames here for the size of the dense layer
     num_classes = len(class_names)
@@ -147,36 +142,36 @@ if __name__ == '__main__':
             # layers.Rescaling(1. / 255, input_shape=(img_height, img_width, 3)),
 
             layers.Input(shape=(img_height, img_width, 3)),
-            layers.Conv2D(32, (3, 3), activation='relu'),
-            layers.BatchNormalization(), # Makes each layer 0 to 1
+            layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
+            layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
             layers.Dropout(.04),
 
-            layers.Conv2D(64, (3,3), activation='relu'),
-            layers.BatchNormalization(), # Makes each layer 0 to 1
-            layers.MaxPooling2D(pool_size =(2,2)),
+            layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+            layers.BatchNormalization(),  # Makes each layer 0 to 1
+            layers.MaxPooling2D(pool_size=(2, 2)),
             layers.Dropout(.08),
 
-            layers.Conv2D(128, (3,3), activation='relu'),
-            layers.BatchNormalization(), # Makes each layer 0 to 1
-            layers.MaxPooling2D(pool_size =(2,2)),
+            layers.Conv2D(filters=128, kernel_size=(3, 3), activation='relu'),
+            layers.BatchNormalization(),  # Makes each layer 0 to 1
+            layers.MaxPooling2D(pool_size=(2, 2)),
             layers.Dropout(.16),
 
-            layers.Conv2D(256, (3,3), activation='relu'),
-            layers.BatchNormalization(), # Makes each layer 0 to 1
-            layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Dropout(.32),
-            #Keeping dropout low because of https://machinelearningmastery.com/dropout-for-regularizing-deep-neural-networks/
-            layers.Conv2D(512, (3, 3), activation='relu'),
+            layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
             layers.Dropout(.32),
-
+            # Keeping dropout low because of https://machinelearningmastery.com/dropout-for-regularizing-deep-neural-networks/
+            layers.Conv2D(filters=512, kernel_size=(3, 3), activation='relu'),
+            layers.BatchNormalization(),  # Makes each layer 0 to 1
+            layers.MaxPooling2D(pool_size=(2, 2)),
+            layers.Dropout(.32),
 
             layers.Flatten(),
             # Seems more dense here the better or train for more epochs
             # Dense layer used here because we would like the layer to be connected to all preceding layer
             # https://analyticsindiamag.com/a-complete-understanding-of-dense-layers-in-neural-networks/
+            # 512 dimensionality of the output space.
             layers.Dense(512, activation='relu'),
             layers.BatchNormalization(),
 
@@ -185,7 +180,8 @@ if __name__ == '__main__':
             # Therefore, when a dropout rate of 0.8 is suggested in a paper (retain 80%), this will, in fact, will be a dropout rate of 0.2 (set 20% of inputs to zero).
             # from https://machinelearningmastery.com/how-to-reduce-overfitting-with-dropout-regularization-in-keras/
             layers.Dropout(.8),
-            layers.Dense(num_classes, activation='softmax'), # This goes to number of classes dense being 2 and activation is softmax therefore 0 or 1
+            layers.Dense(num_classes, activation='softmax'),
+            # This goes to number of classes dense being 2 and activation is softmax therefore 0 or 1
             # Softmax is good for binary classification
         ]
     )
@@ -210,6 +206,7 @@ if __name__ == '__main__':
     )
     try:
         # This saves the model if failure return failed to save model
+        # https://www.tensorflow.org/tutorials/keras/save_and_load#save_the_entire_model
         model.save(arguments[2] + '.dnn', include_optimizer=False, save_format='h5')
     except:
         print('Failed to Save Model')
