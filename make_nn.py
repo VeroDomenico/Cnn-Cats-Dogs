@@ -170,7 +170,8 @@ if __name__ == '__main__':
             layers.Dense(512, activation='relu'),
             layers.BatchNormalization(),
 
-            # Dropout of .5 in order to ensure that the softmax determines correctly
+            # Dropout of .8 in order to ensure that the softmax determines correctly
+            # The higher the dropout the better it seems here for accuracy but testing on images
             layers.Dropout(.8),
             layers.Dense(num_classes, activation='softmax'), # This goes to number of classes dense being 2 and activation is softmax therefore 0 or 1
             # Softmax is good for binary classification
