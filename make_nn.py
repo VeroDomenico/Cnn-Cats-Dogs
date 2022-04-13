@@ -93,7 +93,6 @@ if __name__ == '__main__':
         exit(1)
 
     # Check a gpu is being used
-    # TODO
     # physical_devices = tf.config.list_physical_devices('GPU')
     # print(physical_devices)
     # This program may assume that all training image file names begin with c or d, for “cat” and “dog” respectively.
@@ -102,10 +101,8 @@ if __name__ == '__main__':
 
     img_width_height = image_stats(filePath)
 
-    # TODO See if adam wants this part but to move forward I believe we have to do this
     create_labels(filePath)
 
-    # TODO issue with handling the labels i need to some how seperate the dogs and the cats
     train_ds = tf.keras.utils.image_dataset_from_directory(
         "/home/domenico/PycharmProjects/hw4/cats-and-dogs/",
         labels="inferred",
@@ -113,20 +110,27 @@ if __name__ == '__main__':
         image_size=(img_width_height[1], img_width_height[0]),
         batch_size=batch_size)
     class_names = train_ds.class_names
-    print(class_names)
 
+    # https://www.tensorflow.org/tutorials/load_data/images
+    # This should pull data from disk without i/o taking a lot of time and thereby increase the speed
+    # Autotune gets CPU resources and allocates it based upon an optimization algorithm
+    # More documentation can be found in https://www.tensorflow.org/api_docs/python/tf/data/experimental/OptimizationOptions?version=stable
     AUTOTUNE = tf.data.AUTOTUNE
 
+    # Cache the dataset it will create a cache file somewhere on the system
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
+    # https://www.tensorflow.org/tutorials/load_data/images#standardize_the_data
+    # This standardizes the data forcing the values to be between 0,1 same as batch normilization for layers
     normalization_layer = layers.Rescaling(1. / 255)
-
+    # This is included in the model but here is an example of it is desired to have it outside of the model
     normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     image_batch, labels_batch = next(iter(normalized_ds))
     first_image = image_batch[0]
-    # Notice the pixel values are now in `[0,1]`.
-    print(np.min(first_image), np.max(first_image))
+    # Notice the pixel values are now in `[0,1]`. Print statement removed for class reasonings
+    #print(np.min(first_image), np.max(first_image))
 
+    # We can grab classnames here for the size of the dense layer
     num_classes = len(class_names)
 
     # Used keras page on https://www.tensorflow.org/tutorials/keras/classification#make_predictions to make model
@@ -167,31 +171,41 @@ if __name__ == '__main__':
 
             layers.Flatten(),
             # Seems more dense here the better or train for more epochs
+            # Dense layer used here because we would like the layer to be connected to all preceding layer
+            # https://analyticsindiamag.com/a-complete-understanding-of-dense-layers-in-neural-networks/
             layers.Dense(512, activation='relu'),
             layers.BatchNormalization(),
 
-            # Dropout of .8 in order to ensure that the softmax determines correctly
+            # Dropout of .8 in order to ensure that the softmax determines correctly  0.6574 .5 on test .645 for .8 ccuracy: 0.6741 .3?
             # The higher the dropout the better it seems here for accuracy but testing on images
+            # Therefore, when a dropout rate of 0.8 is suggested in a paper (retain 80%), this will, in fact, will be a dropout rate of 0.2 (set 20% of inputs to zero).
+            # from https://machinelearningmastery.com/how-to-reduce-overfitting-with-dropout-regularization-in-keras/
             layers.Dropout(.8),
             layers.Dense(num_classes, activation='softmax'), # This goes to number of classes dense being 2 and activation is softmax therefore 0 or 1
             # Softmax is good for binary classification
         ]
     )
 
-    #
+    # https://www.tensorflow.org/api_docs/python/tf/keras/Model#attributes_1
+    # run_eagerly is useful for debugging issue within a given layer
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
 
     # Summary of Arch for the model
+    # https://www.tensorflow.org/api_docs/python/tf/keras/Model#summary
     model.summary()
 
-    #
+    # fit the model as shown in keras documentation
+    # https://www.tensorflow.org/api_docs/python/tf/keras/Model#fit
+    # x is the train ds and y is the target data
+    # default batchsize is 32 so I left unchanged but adding a batch_size=batchsize will allow for a specified batchsize
     history = model.fit(
         train_ds,
         epochs=epochs
     )
     try:
+        # This saves the model if failure return failed to save model
         model.save(arguments[2] + '.dnn', include_optimizer=False, save_format='h5')
     except:
         print('Failed to Save Model')
