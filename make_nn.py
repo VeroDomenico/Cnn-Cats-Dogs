@@ -45,7 +45,6 @@ def image_stats(filePath):
 
 
 def create_labels(file_path):
-    # TODO CHECK IF DIR Exists?
     try:
         dir_name = os.path.join(file_path, "dog")
         os.mkdir(dir_name)
@@ -74,7 +73,6 @@ def create_labels(file_path):
 if __name__ == '__main__':
 
     # Initialization vars
-    # TODO Check If img =-1
     batch_size = 32
     img_height = 100
     img_width = 100
