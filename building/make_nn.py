@@ -45,6 +45,12 @@ def image_stats(filePath):
 
 
 def create_labels(file_path):
+    """
+    Takes a filepath looks for files labed c and d and split them into subset folder titled
+     dogs, cat
+    :param file_path:
+    :return: None
+    """
     try:
         dir_name = os.path.join(file_path, "dog")
         os.mkdir(dir_name)
@@ -102,7 +108,7 @@ if __name__ == '__main__':
     create_labels(filePath)
 
     train_ds = tf.keras.utils.image_dataset_from_directory(
-        "/home/domenico/PycharmProjects/hw4/cats-and-dogs/",
+        arguments[1],
         labels="inferred",
         seed=123,
         image_size=(img_width_height[1], img_width_height[0]),
@@ -119,9 +125,9 @@ if __name__ == '__main__':
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
     # https://www.tensorflow.org/tutorials/load_data/images#standardize_the_data
-    # This standardizes the data forcing the values to be between 0,1 same as batch normilization for layers
+    # This standardizes the data forcing the values to be between 0,1 same as batch normalization for layers
     normalization_layer = layers.Rescaling(1. / 255)
-    # This is included in the model but here is an example of it is desired to have it outside of the model
+    # This is included in the model but here is an example of it is desired to have it outside the model
     normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     image_batch, labels_batch = next(iter(normalized_ds))
     first_image = image_batch[0]
