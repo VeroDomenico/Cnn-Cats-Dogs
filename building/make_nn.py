@@ -207,3 +207,4 @@ if __name__ == '__main__':
         model.save(arguments[2] + '.dnn', include_optimizer=False, save_format='h5')
     except:
         print('Failed to Save Model')
+        exit(1)
