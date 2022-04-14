@@ -153,16 +153,6 @@ if __name__ == '__main__':
     # Cache the dataset it will create a cache file somewhere on the system
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
-    # https://www.tensorflow.org/tutorials/load_data/images#standardize_the_data
-    # This standardizes the data forcing the values to be between 0,1 same as batch normalization for layers
-    # normalization_layer = layers.Rescaling(1. / 255)
-    # This is included in the model but here is an example of it is desired to have it outside the model
-    # normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-    # image_batch, labels_batch = next(iter(normalized_ds))
-    # first_image = image_batch[0]
-    # Notice the pixel values are now in `[0,1]`. Print statement removed for class reasonings
-    # print(np.min(first_image), np.max(first_image))
-
     # We can grab classnames here for the size of the dense layer
     num_classes = len(class_names)
 
@@ -205,13 +195,12 @@ if __name__ == '__main__':
             layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-            #layers.Dropout(.2),
+            layers.Dropout(.2),
 
             layers.Conv2D(filters=512, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-
-            #layers.Dropout(.32),
+            layers.Dropout(.32),
 
             layers.Flatten(),
             # Seems more dense here the better or train for more epochs
