@@ -16,6 +16,40 @@ of the neural network file to create and save to disk. This program may assume t
 all training image file names begin with c or d, for “cat” and “dog” respectively.
 """
 
+# Warning I noticed that using the cache for preformance also introduced possible errors if the dataset breaks
+# during epoch. Example:
+"""
+328/328 [==============================] - 6s 9ms/step - loss: 0.1573 - accuracy: 0.9419
+Epoch 2/32
+328/328 [==============================] - 3s 8ms/step - loss: 0.0047 - accuracy: 0.9997
+Epoch 3/32
+328/328 [==============================] - 3s 8ms/step - loss: 0.0010 - accuracy: 1.0000
+"""
+# I believe this is caused as a result of cache containing files using uncorrupted data yields
+"""
+This image test.jpg most likely belongs to Cat with a 73.09 percent confidence.
+This image test2.jpg most likely belongs to Dog with a 54.09 percent confidence.
+This image notadog.jpg most likely belongs to Dog with a 73.09 percent confidence.
+This image notadogagain.jpg most likely belongs to Cat with a 65.01 percent confidence.
+This image bestdog.jpeg most likely belongs to Dog with a 73.11 percent confidence.
+This image IMG_7191.JPG most likely belongs to Cat with a 71.22 percent confidence.
+This image cat?.jpg most likely belongs to Dog with a 73.10 percent confidence.
+"""
+# bad cache
+"""
+Bad Cache: 
+This image test.jpg most likely belongs to Cat with a 73.11 percent confidence.
+2022-04-13 20:11:10.190869: I tensorflow/stream_executor/cuda/cuda_blas.cc:1786] TensorFloat-32 will be used for the matrix multiplication. This will only be logged once.
+This image test2.jpg most likely belongs to Cat with a 73.11 percent confidence.
+This image notadog.jpg most likely belongs to Cat with a 73.11 percent confidence.
+This image notadogagain.jpg most likely belongs to Cat with a 73.11 percent confidence.
+This image bestdog.jpeg most likely belongs to Cat with a 73.11 percent confidence.
+This image IMG_7191.JPG most likely belongs to Cat with a 73.11 percent confidence.
+This image cat?.jpg most likely belongs to Cat with a 73.11 percent confidence.
+"""
+
+
+# Run the program a couple of times and the problem is fixed
 
 def image_stats(filePath):
     """
@@ -121,11 +155,11 @@ if __name__ == '__main__':
 
     # https://www.tensorflow.org/tutorials/load_data/images#standardize_the_data
     # This standardizes the data forcing the values to be between 0,1 same as batch normalization for layers
-    normalization_layer = layers.Rescaling(1. / 255)
+    # normalization_layer = layers.Rescaling(1. / 255)
     # This is included in the model but here is an example of it is desired to have it outside the model
-    normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-    image_batch, labels_batch = next(iter(normalized_ds))
-    first_image = image_batch[0]
+    # normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+    # image_batch, labels_batch = next(iter(normalized_ds))
+    # first_image = image_batch[0]
     # Notice the pixel values are now in `[0,1]`. Print statement removed for class reasonings
     # print(np.min(first_image), np.max(first_image))
 
@@ -136,36 +170,48 @@ if __name__ == '__main__':
     # Also https://www.tensorflow.org/tutorials/images/classification
     # https://machinelearningmastery.com/how-to-accelerate-learning-of-deep-neural-networks-with-batch-normalization/
     # https://www.sicara.ai/blog/2019-10-31-convolutional-layer-convolution-kernel
+    # Dropout scales upwards due to my thought that we want redundancies dependent layers outwards and not based upon
+    # First layer as first layer just looks at features and from those features more patterns are extrapolated which
+    # will be more uncertain as layers are added meaning I think having more dropout deeper we go is better
+    # It should be better at generalizing deeper than opposed to earlier.
+    # Another possible implementation based upon Nvidia Gan could be training x epochs per layer then adding a layer
     model = Sequential(
         [
             # https://keras.io/api/layers/normalization_layers/batch_normalization/
             # layers.Rescaling(1. / 255, input_shape=(img_height, img_width, 3)),
-
             layers.Input(shape=(img_height, img_width, 3)),
             layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
+            # https://medium.com/@ilango100/batchnorm-fine-tune-your-booster-bef9f9493e22
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Dropout(.04),
+            # layers.Dropout(.04),
+
+            # I wanted to augment more data since some of jpegs used were corrupted after image magic convert
+            # https://www.tensorflow.org/tutorials/images/data_augmentation#data_augmentation_2
+
+            layers.RandomFlip("horizontal_and_vertical"),
+            #layers.RandomRotation(0.2),
 
             layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Dropout(.08),
+            #layers.Dropout(.08),
 
             layers.Conv2D(filters=128, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Dropout(.16),
+            #layers.Dropout(.16),
 
             layers.Conv2D(filters=256, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Dropout(.32),
-            # Keeping dropout low because of https://machinelearningmastery.com/dropout-for-regularizing-deep-neural-networks/
+            #layers.Dropout(.2),
+
             layers.Conv2D(filters=512, kernel_size=(3, 3), activation='relu'),
             layers.BatchNormalization(),  # Makes each layer 0 to 1
             layers.MaxPooling2D(pool_size=(2, 2)),
-            layers.Dropout(.32),
+
+            #layers.Dropout(.32),
 
             layers.Flatten(),
             # Seems more dense here the better or train for more epochs
@@ -174,12 +220,14 @@ if __name__ == '__main__':
             # 512 dimensionality of the output space.
             layers.Dense(512, activation='relu'),
             layers.BatchNormalization(),
+            # Seems no dropout here is best otherwise confidence increases very high
 
-            # Dropout of .8 in order to ensure that the softmax determines correctly  0.6574 .5 on test .645 for .8 ccuracy: 0.6741 .3?
+            # Dropout of .2 in order to ensure that the softmax determines correctly  0.6574 .5 on test .645 for .8 ccuracy: 0.6741 .3?
             # The higher the dropout the better it seems here for accuracy but testing on images
             # Therefore, when a dropout rate of 0.8 is suggested in a paper (retain 80%), this will, in fact, will be a dropout rate of 0.2 (set 20% of inputs to zero).
             # from https://machinelearningmastery.com/how-to-reduce-overfitting-with-dropout-regularization-in-keras/
-            layers.Dropout(.8),
+            # .5 yields best results upon testing
+            layers.Dropout(.5),
             layers.Dense(num_classes, activation='softmax'),
             # This goes to number of classes dense being 2 and activation is softmax therefore 0 or 1
             # Softmax is good for binary classification
@@ -188,18 +236,22 @@ if __name__ == '__main__':
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/Model#attributes_1
     # run_eagerly is useful for debugging issue within a given layer
+    # https://www.tensorflow.org/api_docs/python/tf/keras/losses/SparseCategoricalCrossentropy#expandable-1
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                  # Two or more labels each is 0 to 1
+                  # https://github.com/tensorflow/tensorflow/blob/v2.8.0/tensorflow/python/ops/nn_ops.py#L3825-L3862
                   metrics=['accuracy'])
 
     # Summary of Arch for the model
     # https://www.tensorflow.org/api_docs/python/tf/keras/Model#summary
+
     model.summary()
 
     # fit the model as shown in keras documentation
     # https://www.tensorflow.org/api_docs/python/tf/keras/Model#fit
     # x is the train ds and y is the target data
-    # default batchsize is 32 so I left unchanged but adding a batch_size=batchsize will allow for a specified batchsize
+    # default batch size is 32 so I left unchanged but adding a batch_size=batchsize will allow for a specified batchsize
     history = model.fit(
         train_ds,
         epochs=epochs
