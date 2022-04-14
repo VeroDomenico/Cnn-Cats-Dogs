@@ -9,6 +9,20 @@ Also try different arch
 for file in *.jpg; do convert $file -resize 100x100! $file; done
 
 
+Classify class 
+
+            img = tf.keras.utils.load_img(arguments[image_idx])
+            img_array = tf.keras.utils.img_to_array(img)
+            img_array = tf.expand_dims(img_array, 0)
+            # predict model https://www.tensorflow.org/api_docs/python/tf/keras/Model#predict
+            predictions = loaded_model.predict(img_array)
+            score = tf.nn.softmax(predictions[0])
+
+            print(
+                "This image {} most likely belongs to {} with a {:.2f} percent confidence."
+                    .format(arguments[image_idx], class_labels[np.argmax(score)], 100 * np.max(score))
+            )
+
 
 This image IMG_7191.JPG most likely belongs to Cat with a 71.22 percent confidence.
 prediction [[1.3322309e-04 9.9986672e-01]]
